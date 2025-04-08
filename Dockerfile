@@ -1,5 +1,8 @@
 FROM alpine:latest
 
+# Install nftables and dependencies
+RUN apk add --no-cache nftables
+
 # Copy the entire cloud-dns directory with all contents
 COPY cloud-dns/ /app/cloud-dns/
 
@@ -14,18 +17,19 @@ ENV SECRET=""
 ENV RPC_ENDPOINTS="http://127.0.0.1:8003"
 
 EXPOSE 53
-EXPOSE 8003
 
 # Create entrypoint script using single quotes to prevent variable expansion
 COPY <<'EOF' /app/entrypoint.sh
 #!/bin/sh
+
+# Generate configuration file from environment variables
 cat > /app/cloud-dns/configs/api_dns.yaml << CONFIG
 rpc.endpoints: [ "$RPC_ENDPOINTS" ]
 nodeId: "$NODE_ID"
 secret: "$SECRET"
 CONFIG
 
-cat /app/cloud-dns/configs/api_dns.yaml
+# Start the cloud-dns service
 exec /app/cloud-dns/bin/cloud-dns daemon
 EOF
 
