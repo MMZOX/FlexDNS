@@ -30,6 +30,9 @@ secret: "$SECRET"
 CONFIG
 
 # Start the cloud-dns service
+echo "Starting cloud-dns service..."
+echo "running with config:"
+cat /app/cloud-dns/configs/api_dns.yaml
 exec /app/cloud-dns/bin/cloud-dns daemon
 EOF
 
