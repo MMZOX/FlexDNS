@@ -40,6 +40,8 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Debug step to verify login
+      id: docker_login
 
     # Option 2: Login to GitHub Container Registry
     - name: Login to GitHub Container Registry
@@ -52,17 +54,34 @@ jobs:
 
     - name: Set image name based on registry
       id: image_name
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       run: |
-        if [[ "$REGISTRY_CHOICE" == "ghcr" ]]; then
-          echo "IMAGE=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME" >> $GITHUB_OUTPUT
+        if [[ "${{ env.REGISTRY_CHOICE }}" == "ghcr" ]]; then
+          # For GitHub Container Registry
+          IMAGE_VALUE="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+          echo "Setting image name to: $IMAGE_VALUE"
+          echo "IMAGE=$IMAGE_VALUE" >> "$GITHUB_OUTPUT"
         else
           # For Docker Hub, use the organization/username from secrets if available
-          if [[ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]]; then
-            echo "IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME" >> $GITHUB_OUTPUT
+          if [[ -n "$DOCKER_USERNAME" ]]; then
+            IMAGE_VALUE="$DOCKER_USERNAME/${{ env.IMAGE_NAME }}"
+            echo "Using Docker Hub username from secrets: $DOCKER_USERNAME"
           else
-            echo "IMAGE=${{ github.repository_owner }}/$IMAGE_NAME" >> $GITHUB_OUTPUT
+            IMAGE_VALUE="${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+            echo "No Docker Hub username found in secrets, using repository owner"
           fi
+          echo "Setting image name to: $IMAGE_VALUE"
+          echo "IMAGE=$IMAGE_VALUE" >> "$GITHUB_OUTPUT"
         fi
+
+        # Verify the output was set correctly
+        cat "$GITHUB_OUTPUT"
+
+    - name: Debug image name
+      run: |
+        echo "Image name: ${{ steps.image_name.outputs.IMAGE }}"
+        echo "Registry choice: ${{ env.REGISTRY_CHOICE }}"
 
     - name: Extract metadata for Docker
       id: meta
@@ -75,6 +94,16 @@ jobs:
           type=ref,event=pr
           type=sha,format=short
           latest
+
+    - name: Verify Docker Hub access
+      if: env.REGISTRY_CHOICE == 'dockerhub' || env.REGISTRY_CHOICE == ''
+      run: |
+        # Check if we can access Docker Hub
+        docker info
+        # List available tags for the image if it exists
+        echo "Checking access to repository: ${{ steps.image_name.outputs.IMAGE }}"
+        # This command will fail if the repository doesn't exist or we don't have access
+        docker pull ${{ steps.image_name.outputs.IMAGE }}:latest || echo "Repository may not exist yet or we don't have access"
 
     - name: Build and push Docker image
       id: build-and-push
