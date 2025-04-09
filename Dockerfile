@@ -13,13 +13,10 @@ WORKDIR /app
 
 # Set environment variables with defaults
 ENV NODE_ID=""
-ENV SECRET=""
 ENV RPC_ENDPOINTS="http://127.0.0.1:8003"
-
-# Setup nftables rules for UDP port 53
-RUN nft add table inet filter && \
-    nft add chain inet filter input { type filter hook input priority 0 \; } && \
-    nft add rule inet filter input udp dport 53 accept
+# Use build arg for secret to avoid warning
+ARG SECRET=""
+ENV SECRET=${SECRET}
 
 EXPOSE 53/udp
 EXPOSE 53/tcp
@@ -27,6 +24,11 @@ EXPOSE 53/tcp
 # Create entrypoint script using single quotes to prevent variable expansion
 COPY <<'EOF' /app/entrypoint.sh
 #!/bin/sh
+
+# Setup nftables rules for UDP port 53
+nft add table inet filter
+nft add chain inet filter input { type filter hook input priority 0 \; }
+nft add rule inet filter input udp dport 53 accept
 
 # Generate configuration file from environment variables
 cat > /app/cloud-dns/configs/api_dns.yaml << CONFIG
