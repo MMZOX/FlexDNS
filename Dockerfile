@@ -1,7 +1,7 @@
 FROM alpine:latest
 
 # Install nftables and dependencies
-# RUN apk add --no-cache nftables
+RUN apk add --no-cache nftables
 
 # Copy the entire cloud-dns directory with all contents
 COPY cloud-dns/ /app/cloud-dns/
