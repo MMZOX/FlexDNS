@@ -16,7 +16,13 @@ ENV NODE_ID=""
 ENV SECRET=""
 ENV RPC_ENDPOINTS="http://127.0.0.1:8003"
 
-EXPOSE 53
+# Setup nftables rules for UDP port 53
+RUN nft add table inet filter && \
+    nft add chain inet filter input { type filter hook input priority 0 \; } && \
+    nft add rule inet filter input udp dport 53 accept
+
+EXPOSE 53/udp
+EXPOSE 53/tcp
 
 # Create entrypoint script using single quotes to prevent variable expansion
 COPY <<'EOF' /app/entrypoint.sh
